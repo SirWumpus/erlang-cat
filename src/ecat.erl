@@ -10,6 +10,7 @@ usage() ->
 	io:format("-e\t\tshow end of line as $, implies -v~n"),
 	io:format("-n\t\tnumbers the output lines~n"),
 	io:format("-t\t\tshow tabs as ^I, implies -v~n"),
+	io:format("-u\t\tunbuffered output~n"),
 	io:format("-v\t\tshow non-printable control characters ^X~n"),
 	halt(2).
 

@@ -8,6 +8,7 @@ usage: ecat [-entuv][-B size][file ...]
 -e              show end of line as $, implies -v
 -n              numbers the output lines
 -t              show tabs as ^I, implies -v
+-u              unbuffered output
 -v              show non-printable control characters ^X
 ```
 
