@@ -72,35 +72,36 @@ cat(Fp, Putline, Lineno) ->
 		throw({error, Reason})
 	end.
 
-putch(<<>>, _, _) ->
-	ok;
-putch(<<Octet:8, Rest/binary>>, Tab, Eol) ->
+show(Octet, Tab, Eol) ->
 	if
 	Octet == 9 ->
 		case Tab of
 		true ->
-			file:write(standard_io, <<"^I">>);
+			<<"^I">>;
 		false ->
-			file:write(standard_io, <<$\t:8>>)
+			<<Octet:8>>
 		end;
 	Octet == 10 ->
 		case Eol of
 		true ->
-			file:write(standard_io, <<$$>>);
+			<<$$, Octet:8>>;
 		false ->
-			ok
-		end,
-		file:write(standard_io, <<Octet:8>>);
+			<<Octet:8>>
+		end;
 	Octet == 127 ->
-		file:write(standard_io, <<"^?">>);
+		<<"^?">>;
 	Octet > 127 ->
-		file:write(standard_io, <<"M-">>),
-		putch(<<(Octet-128):8>>, Tab, Eol);
+		<<"M-", (show(Octet - 128, Tab, Eol))/binary>>;
 	Octet >= 32 ->
-		file:write(standard_io, <<Octet:8>>);
+		<<Octet:8>>;
 	Octet < 32 ->
-		file:write(standard_io, <<$^, (Octet+$@):8>>)
-	end,
+		<<$^, (Octet + $@):8>>
+	end.
+
+putch(<<>>, _, _) ->
+	ok;
+putch(<<Octet:8, Rest/binary>>, Tab, Eol) ->
+	file:write(standard_io, show(Octet, Tab, Eol)),
 	putch(Rest, Tab, Eol).
 
 which_putch(Opts) ->
