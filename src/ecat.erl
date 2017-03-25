@@ -1,6 +1,6 @@
 %%#!/usr/bin/env escript
 -module(ecat).
--export([main/1]).
+-export([main/1, cat/2]).
 
 -define(BUFSIZ, 1024).
 
@@ -20,9 +20,9 @@ main(Args) ->
 		{ $e, flag, show_eol },
 		{ $n, flag, line_numbers },
 		{ $t, flag, show_tab },
-		%% Doesn't appear possible to support in Erlang
+		%% Doesn't appear possible to support -u in Erlang.
 		{ $u, flag, unbuffered },
-		{ $v, flag, show_cntl }
+		{ $v, flag, show_control }
 	]) of
 	{ok, Options, ArgsN} ->
 		process(Options, ArgsN);
@@ -33,7 +33,7 @@ main(Args) ->
 
 process(Opts, []) ->
 	io:setopts(standard_io, [binary]),
-	cat(standard_io, which_putline(Opts));
+	cat(standard_io, Opts);
 process(Opts, Files) ->
 	process_files(Opts, Files).
 
@@ -53,14 +53,14 @@ process_file(Opts, Filename) ->
 	Size = proplists:get_value(read_size, Opts, ?BUFSIZ),
 	case file:open(Filename, [read, binary, {read_ahead, Size}]) of
 	{ok, Fp} ->
-		cat(Fp, which_putline(Opts)),
+		cat(Fp, Opts),
 		file:close(Fp);
 	Error ->
 		throw(Error)
 	end.
 
-cat(Fp, Putline) ->
-	cat(Fp, Putline, 1).
+cat(Fp, Opts) ->
+	cat(Fp, which_putline(Opts), 1).
 cat(Fp, Putline, Lineno) ->
 	case file:read_line(Fp) of
 	eof ->
@@ -107,7 +107,7 @@ putch(<<Octet:8, Rest/binary>>, Tab, Eol) ->
 which_putch(Opts) ->
 	Eol = proplists:get_value(show_eol, Opts, false),
 	Tab = proplists:get_value(show_tab, Opts, false),
-	case {proplists:get_value(show_cntl, Opts, false), Tab, Eol} of
+	case {proplists:get_value(show_control, Opts, false), Tab, Eol} of
 	{false, false, false} ->
 		fun (<<>>) ->
 			ok;
