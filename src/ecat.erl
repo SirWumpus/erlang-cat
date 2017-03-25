@@ -5,9 +5,10 @@
 -define(BUFSIZ, 1024).
 
 usage() ->
-	io:format("usage: ecat [-etuv][-B size][file ...]~n"),
+	io:format("usage: ecat [-entuv][-B size][file ...]~n"),
 	io:format("-B size\t\tread buffer size; default 1024~n"),
 	io:format("-e\t\tshow end of line as $, implies -v~n"),
+	io:format("-n\t\tnumbers the output lines~n"),
 	io:format("-t\t\tshow tabs as ^I, implies -v~n"),
 	io:format("-v\t\tshow non-printable control characters ^X~n"),
 	halt(2).
@@ -16,6 +17,7 @@ main(Args) ->
 	case egetopt:parse(Args, [
 		{ $B, param, read_size },
 		{ $e, flag, show_eol },
+		{ $n, flag, line_numbers },
 		{ $t, flag, show_tab },
 		%% Doesn't appear possible to support in Erlang
 		{ $u, flag, unbuffered },
@@ -30,7 +32,7 @@ main(Args) ->
 
 process(Opts, []) ->
 	io:setopts(standard_io, [binary]),
-	cat(standard_io, output(Opts));
+	cat(standard_io, which_putline(Opts));
 process(Opts, Files) ->
 	process_files(Opts, Files).
 
@@ -47,37 +49,38 @@ process_files(Opts, [Filename | Rest]) ->
 	process_files(Opts, Rest).
 
 process_file(Opts, Filename) ->
-	Buffer = proplists:get_value(read_size, Opts, ?BUFSIZ),
-	case file:open(Filename, [read, binary, {read_ahead, Buffer}]) of
+	Size = proplists:get_value(read_size, Opts, ?BUFSIZ),
+	case file:open(Filename, [read, binary, {read_ahead, Size}]) of
 	{ok, Fp} ->
-		cat(Fp, output(Opts)),
+		cat(Fp, which_putline(Opts)),
 		file:close(Fp);
 	Error ->
 		throw(Error)
 	end.
 
-cat(Fp, Putch) ->
-	case file:read(Fp, 1) of
+cat(Fp, Putline) ->
+	cat(Fp, Putline, 1).
+cat(Fp, Putline, Lineno) ->
+	case file:read_line(Fp) of
 	eof ->
 		ok;
-	{ok, Ch} ->
-		Putch(Ch),
-		cat(Fp, Putch);
+	{ok, Line} ->
+		Putline(Line, Lineno),
+		cat(Fp, Putline, Lineno+1);
 	{error, Reason} ->
 		throw({error, Reason})
 	end.
 
 putch(<<>>, _, _) ->
 	ok;
-putch(Ch, Tab, Eol) ->
-	<<Octet:8, Rest/binary>> = Ch,
+putch(<<Octet:8, Rest/binary>>, Tab, Eol) ->
 	if
 	Octet == 9 ->
 		case Tab of
 		true ->
 			file:write(standard_io, <<"^I">>);
 		false ->
-			file:write(standard_io, <<9:8>>)
+			file:write(standard_io, <<$\t:8>>)
 		end;
 	Octet == 10 ->
 		case Eol of
@@ -91,19 +94,42 @@ putch(Ch, Tab, Eol) ->
 		file:write(standard_io, <<"^?">>);
 	Octet > 127 ->
 		file:write(standard_io, <<"M-">>),
-		putch(<<(Octet-128):8, Rest/binary>>, Tab, Eol);
+		putch(<<(Octet-128):8>>, Tab, Eol);
 	Octet >= 32 ->
-		file:write(standard_io, Ch);
+		file:write(standard_io, <<Octet:8>>);
 	Octet < 32 ->
 		file:write(standard_io, <<$^, (Octet+$@):8>>)
-	end.
+	end,
+	putch(Rest, Tab, Eol).
 
-output(Opts) ->
+which_putch(Opts) ->
 	Eol = proplists:get_value(show_eol, Opts, false),
 	Tab = proplists:get_value(show_tab, Opts, false),
 	case {proplists:get_value(show_cntl, Opts, false), Tab, Eol} of
 	{false, false, false} ->
-		fun (Octet) -> file:write(standard_io, Octet) end;
+		fun (<<>>) ->
+			ok;
+		(Octets) ->
+			file:write(standard_io, Octets)
+		end;
 	_ ->
-		fun (Octet) -> putch(Octet, Tab, Eol) end
+		fun (Octets) ->
+			putch(Octets, Tab, Eol) end
+	end.
+
+putline(Line, Lineno, Putch) ->
+	io:format("~6B  ", [Lineno]),
+	Putch(Line).
+
+which_putline(Opts) ->
+	Putch = which_putch(Opts),
+	case proplists:get_value(line_numbers, Opts, false) of
+	true ->
+		fun (Line, Lineno) ->
+			putline(Line, Lineno, Putch)
+		end;
+	false ->
+		fun (Line, _Lineno) ->
+			Putch(Line)
+		end
 	end.

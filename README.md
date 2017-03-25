@@ -2,10 +2,11 @@ Erlang cat(1)
 =============
 
 ```
-usage: ecat [-etuv][-B size][file ...]
+usage: ecat [-entuv][-B size][file ...]
 
 -B size         read buffer size; default 1024
 -e              show end of line as $, implies -v
+-n              numbers the output lines
 -t              show tabs as ^I, implies -v
 -v              show non-printable control characters ^X
 ```
