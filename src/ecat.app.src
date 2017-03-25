@@ -1,0 +1,21 @@
+{application, ecat, [
+	{pkg_name, "ecat"},
+	{vsn, "1.0.0"},
+	{description, "Erlang version of cat(1)"},
+	{links, [{"Github", "https://github.com/SirWumpus/erlang-cat"}]},
+	{applications, [
+		kernel,
+		stdlib,
+		ebs,
+		egetopt
+	]},
+	{licenses, ["MIT"]},
+	{modules, [ecat]},
+	{files, [
+		"README.md",
+		"makefile",
+		"rebar.config",
+		"src",
+		"test"
+	]}
+]}.
